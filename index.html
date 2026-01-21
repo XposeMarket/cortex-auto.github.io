@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cortex — Diagnostics & Repair Intelligence</title>
+  <meta name="description" content="Cortex is a modern diagnostics and repair intelligence system that guides techs from symptoms to solutions — fast, consistent, and shop-ready." />
+
+  <style>
+    :root{
+      /* Solid, sleek palette (no gradients) */
+      --bg: #0b0f14;          /* deep near-black */
+      --panel: #101826;       /* slate/blue-black */
+      --panel2:#0f1520;
+      --stroke:#223247;       /* outline */
+      --text:#e8eef7;         /* near-white */
+      --muted:#a7b5c9;        /* soft gray */
+      --silver:#c7d2e5;       /* “shiny” highlight */
+      --accent:#7f8ea8;       /* cool steel */
+      --accent2:#3a4a64;      /* darker steel */
+      --ok:#9fd3ff;           /* icy pop */
+      --warn:#ffd18b;
+
+      --shadow: 0 16px 55px rgba(0,0,0,.55);
+      --shadow2: 0 10px 35px rgba(0,0,0,.35);
+      --radius: 18px;
+      --radius2: 26px;
+
+      --max: 1150px;
+      --ease: cubic-bezier(.2,.9,.2,1);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+
+    * { box-sizing: border-box; }
+    html,body{ height: 100%; }
+    body{
+      margin:0;
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* subtle “shine” using solid overlays (no gradients) */
+    .noise{
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .06;
+      mix-blend-mode: overlay;
+      background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+    }
+
+    .container{ width: min(var(--max), calc(100% - 48px)); margin: 0 auto; }
+
+    header{
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(10px);
+      background: rgba(11,15,20,.72);
+      border-bottom: 1px solid rgba(34,50,71,.55);
+    }
+    .nav{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      padding: 14px 0;
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap: 12px;
+      text-decoration:none;
+      color: var(--text);
+    }
+    .brand img{
+      width: 38px;
+      height: 38px;
+      object-fit: contain;
+      filter: drop-shadow(0 10px 22px rgba(0,0,0,.45));
+    }
+    .brand .name{
+      display:flex; flex-direction: column; line-height: 1.05;
+    }
+    .brand .name strong{
+      font-size: 14px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .brand .name span{
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: .02em;
+      margin-top: 2px;
+    }
+
+    nav .links{
+      display:flex;
+      gap: 18px;
+      align-items:center;
+    }
+    nav .links a{
+      color: var(--muted);
+      text-decoration:none;
+      font-size: 13px;
+      letter-spacing: .02em;
+      padding: 8px 10px;
+      border-radius: 12px;
+      transition: transform .25s var(--ease), background .25s var(--ease), color .25s var(--ease);
+    }
+    nav .links a:hover{
+      color: var(--text);
+      background: rgba(16,24,38,.75);
+      transform: translateY(-1px);
+    }
+
+    .btn{
+      border: 1px solid rgba(34,50,71,.9);
+      background: rgba(16,24,38,.85);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 14px;
+      text-decoration:none;
+      font-size: 13px;
+      letter-spacing: .02em;
+      display:inline-flex;
+      align-items:center;
+      gap: 10px;
+      box-shadow: var(--shadow2);
+      transition: transform .25s var(--ease), border-color .25s var(--ease), background .25s var(--ease);
+    }
+    .btn:hover{
+      transform: translateY(-2px);
+      border-color: rgba(159,211,255,.55);
+      background: rgba(16,24,38,.98);
+    }
+    .btn.primary{
+      border-color: rgba(159,211,255,.55);
+      background: rgba(159,211,255,.10);
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(34,50,71,.9);
+      background: rgba(16,24,38,.65);
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: .03em;
+      width: fit-content;
+      box-shadow: var(--shadow2);
+    }
+    .dot{
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--ok);
+      box-shadow: 0 0 0 6px rgba(159,211,255,.12);
+    }
+
+    /* Hero */
+    .hero{
+      padding: 80px 0 34px;
+      position: relative;
+    }
+    .hero-grid{
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 34px;
+      align-items: center;
+    }
+    .h1{
+      font-size: clamp(34px, 4.2vw, 56px);
+      margin: 14px 0 14px;
+      letter-spacing: -.02em;
+      line-height: 1.05;
+    }
+    .sub{
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.65;
+      max-width: 55ch;
+    }
+    .cta-row{
+      display:flex;
+      gap: 12px;
+      margin-top: 22px;
+      flex-wrap: wrap;
+      align-items:center;
+    }
+    .micro{
+      margin-top: 12px;
+      color: rgba(167,181,201,.88);
+      font-size: 12px;
+      letter-spacing: .02em;
+    }
+    .micro b{ color: var(--text); font-weight: 600; }
+
+    /* “Product card” on right */
+    .preview{
+      position: relative;
+      border-radius: var(--radius2);
+      border: 1px solid rgba(34,50,71,.95);
+      background: rgba(16,24,38,.60);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      transform-style: preserve-3d;
+      will-change: transform;
+    }
+    .preview .top{
+      display:flex;
+      justify-content: space-between;
+      align-items:center;
+      padding: 16px 16px 12px;
+      border-bottom: 1px solid rgba(34,50,71,.55);
+      background: rgba(15,21,32,.65);
+    }
+    .kebab{ display:flex; gap:6px; align-items:center; }
+    .kebab i{
+      width: 8px; height:8px; border-radius: 50%;
+      background: rgba(167,181,201,.55);
+    }
+    .badge{
+      font-size: 11px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: rgba(199,210,229,.9);
+      border: 1px solid rgba(34,50,71,.9);
+      background: rgba(16,24,38,.55);
+      padding: 7px 10px;
+      border-radius: 999px;
+    }
+    .preview .body{
+      padding: 16px;
+    }
+    .console{
+      border-radius: 16px;
+      border: 1px solid rgba(34,50,71,.85);
+      background: rgba(11,15,20,.7);
+      padding: 14px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.55;
+      color: rgba(232,238,247,.90);
+      position: relative;
+      overflow:hidden;
+    }
+    .console .line{ opacity: .92; }
+    .console .muted{ color: rgba(167,181,201,.85); }
+    .console .ok{ color: var(--ok); }
+    .console .warn{ color: var(--warn); }
+    .console .caret{
+      display:inline-block;
+      width: 7px; height: 14px;
+      background: rgba(232,238,247,.85);
+      vertical-align: -2px;
+      margin-left: 2px;
+      animation: blink 1s steps(2,end) infinite;
+      opacity: .75;
+    }
+    @keyframes blink{ 50%{ opacity: .15; } }
+
+    .mini-row{
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .mini{
+      border-radius: 16px;
+      border: 1px solid rgba(34,50,71,.8);
+      background: rgba(16,24,38,.55);
+      padding: 12px;
+      transition: transform .25s var(--ease), border-color .25s var(--ease);
+    }
+    .mini:hover{
+      transform: translateY(-3px);
+      border-color: rgba(159,211,255,.45);
+    }
+    .mini .t{
+      font-size: 11px;
+      color: rgba(167,181,201,.85);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .mini .v{
+      margin-top: 8px;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -.01em;
+    }
+
+    /* Sections */
+    section{ padding: 54px 0; }
+    .section-title{
+      font-size: 26px;
+      letter-spacing: -.01em;
+      margin: 0 0 10px;
+    }
+    .section-sub{
+      color: var(--muted);
+      line-height: 1.65;
+      margin: 0 0 20px;
+      max-width: 70ch;
+    }
+
+    .grid3{
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .card{
+      border-radius: var(--radius);
+      border: 1px solid rgba(34,50,71,.9);
+      background: rgba(16,24,38,.55);
+      box-shadow: var(--shadow2);
+      padding: 18px;
+      position: relative;
+      overflow:hidden;
+      transform-style: preserve-3d;
+      transition: transform .25s var(--ease), border-color .25s var(--ease);
+    }
+    .card:hover{
+      transform: translateY(-4px);
+      border-color: rgba(159,211,255,.45);
+    }
+    .card h3{
+      margin: 10px 0 8px;
+      font-size: 16px;
+      letter-spacing: -.01em;
+    }
+    .card p{
+      margin: 0;
+      color: rgba(167,181,201,.92);
+      line-height: 1.65;
+      font-size: 14px;
+    }
+    .icon{
+      width: 38px; height: 38px;
+      border-radius: 14px;
+      border: 1px solid rgba(34,50,71,.85);
+      background: rgba(11,15,20,.6);
+      display:grid;
+      place-items:center;
+      color: rgba(232,238,247,.9);
+      font-weight: 800;
+      letter-spacing: .06em;
+      box-shadow: 0 10px 25px rgba(0,0,0,.35);
+    }
+
+    /* Feature strip */
+    .strip{
+      border-top: 1px solid rgba(34,50,71,.55);
+      border-bottom: 1px solid rgba(34,50,71,.55);
+      background: rgba(16,24,38,.40);
+      padding: 18px 0;
+      overflow:hidden;
+    }
+    .marquee{
+      display:flex;
+      gap: 14px;
+      white-space: nowrap;
+      will-change: transform;
+    }
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(34,50,71,.8);
+      background: rgba(11,15,20,.55);
+      color: rgba(199,210,229,.92);
+      font-size: 13px;
+      box-shadow: 0 10px 25px rgba(0,0,0,.25);
+    }
+    .chip b{ color: var(--text); }
+
+    /* CTA section */
+    .cta{
+      border-radius: var(--radius2);
+      border: 1px solid rgba(34,50,71,.95);
+      background: rgba(16,24,38,.55);
+      box-shadow: var(--shadow);
+      padding: 26px;
+      display:flex;
+      justify-content: space-between;
+      align-items:center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .cta h2{
+      margin:0;
+      font-size: 22px;
+      letter-spacing: -.01em;
+    }
+    .cta p{
+      margin: 6px 0 0;
+      color: rgba(167,181,201,.92);
+      line-height: 1.55;
+      max-width: 60ch;
+      font-size: 14px;
+    }
+
+    footer{
+      padding: 26px 0 36px;
+      border-top: 1px solid rgba(34,50,71,.55);
+      color: rgba(167,181,201,.88);
+      font-size: 12px;
+      line-height: 1.65;
+    }
+    .foot-row{
+      display:flex;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+      align-items:flex-start;
+    }
+    .fine{
+      max-width: 85ch;
+    }
+    .fine b{ color: var(--text); }
+    .links2{
+      display:flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .links2 a{
+      color: rgba(167,181,201,.88);
+      text-decoration:none;
+      border: 1px solid rgba(34,50,71,.7);
+      background: rgba(16,24,38,.35);
+      padding: 8px 10px;
+      border-radius: 12px;
+      transition: transform .25s var(--ease), color .25s var(--ease), border-color .25s var(--ease);
+    }
+    .links2 a:hover{
+      color: var(--text);
+      transform: translateY(-2px);
+      border-color: rgba(159,211,255,.45);
+    }
+
+    /* Reveal animations */
+    .reveal{
+      opacity: 0;
+      transform: translateY(14px);
+      transition: opacity .7s var(--ease), transform .7s var(--ease);
+    }
+    .reveal.in{
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Responsive */
+    @media (max-width: 980px){
+      .hero-grid{ grid-template-columns: 1fr; }
+      .grid3{ grid-template-columns: 1fr; }
+      .mini-row{ grid-template-columns: 1fr; }
+      nav .links{ display:none; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="noise"></div>
+
+  <header>
+    <div class="container">
+      <div class="nav">
+        <a class="brand" href="#top">
+          <!-- Put your transparent PNG logo here -->
+          <img src="cortex-mark.png" alt="Cortex logo" />
+          <div class="name">
+            <strong>CORTEX</strong>
+            <span>Diagnostics & Repair Intelligence</span>
+          </div>
+        </a>
+
+        <nav>
+          <div class="links">
+            <a href="#capabilities">Capabilities</a>
+            <a href="#how">How it works</a>
+            <a href="#why">Why Cortex</a>
+            <a href="#trust">Trust</a>
+          </div>
+        </nav>
+
+        <a class="btn primary" href="#cta">
+          Request access <span aria-hidden="true">→</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="container">
+        <div class="hero-grid">
+          <div>
+            <div class="pill reveal">
+              <span class="dot"></span>
+              <span><b>Latest Integration:</b> Now available inside <b>Xpose Management</b> • “Powered by Cortex”</span>
+            </div>
+
+            <h1 class="h1 reveal" style="transition-delay:.06s">
+              From symptoms to solutions - <br/>with shop-ready confidence.
+            </h1>
+
+            <p class="sub reveal" style="transition-delay:.12s">
+              Cortex is a modern diagnostics and repair intelligence system built to guide technicians through
+              <b>tests, likely causes, verified fixes</b>, and <b>service estimates</b> - fast, consistent, and easy to trust.
+              No hype. Just results.
+            </p>
+
+            <div class="cta-row reveal" style="transition-delay:.18s">
+              <a class="btn primary" href="#cta">Get Cortex <span aria-hidden="true">→</span></a>
+              <a class="btn" href="#capabilities">See capabilities</a>
+              <a class="btn" href="#how">How it works</a>
+            </div>
+
+            <div class="micro reveal" style="transition-delay:.24s">
+              Built to scale: <b>cross-referenced procedures</b>, <b>continuously updated knowledge</b>, and <b>OEM-grade structure.</b>
+             
+            </div>
+          </div>
+
+          <div class="preview reveal" id="tiltCard" style="transition-delay:.12s">
+            <div class="top">
+              <div class="kebab" aria-hidden="true"><i></i><i></i><i></i></div>
+              <div class="badge">Cortex • Live Guidance</div>
+            </div>
+
+            <div class="body">
+              <div class="console" aria-label="Cortex preview output">
+                <div class="line"><span class="muted">Case:</span> 2017 Ford F-150 • P0302 • Rough idle</div>
+                <div class="line"><span class="muted">Symptoms:</span> misfire at idle, fuel trim +12%, slight shake</div>
+                <div class="line"><span class="ok">Next best tests:</span></div>
+                <div class="line">1) Swap coil cyl #2 → verify misfire follows</div>
+                <div class="line">2) Inspect plug gap + condition (oil/fuel fouling)</div>
+                <div class="line">3) Relative compression + injector balance</div>
+                <div class="line"><span class="warn">Most likely causes:</span> coil/plug, injector, compression</div>
+                <div class="line"><span class="ok">Recommended repair path:</span> Verify → Replace → Confirm</div>
+                <div class="line muted">Confidence: 0.86 <span class="caret"></span></div>
+              </div>
+
+              <div class="mini-row">
+                <div class="mini">
+                  <div class="t">Time estimate</div>
+                  <div class="v">1.3–2.1h</div>
+                </div>
+                <div class="mini">
+                  <div class="t">Parts list</div>
+                  <div class="v">3 items</div>
+                </div>
+                <div class="mini">
+                  <div class="t">Checklist</div>
+                  <div class="v">8 steps</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <div class="strip" aria-label="Cortex capability highlights">
+      <div class="container">
+        <div class="marquee" id="marquee">
+          <span class="chip"><b>Guided Diag</b> → tests, branching logic</span>
+          <span class="chip"><b>Repair Paths</b> → steps + validation</span>
+          <span class="chip"><b>Service Intelligence</b> → intervals + recommendations</span>
+          <span class="chip"><b>Estimating</b> → structured labor & line items</span>
+          <span class="chip"><b>Consistency</b> → shop-wide standard</span>
+          <span class="chip"><b>Speed</b> → reduce guesswork</span>
+
+          <!-- Duplicate for seamless loop -->
+          <span class="chip"><b>Guided Diag</b> → tests, branching logic</span>
+          <span class="chip"><b>Repair Paths</b> → steps + validation</span>
+          <span class="chip"><b>Service Intelligence</b> → intervals + recommendations</span>
+          <span class="chip"><b>Estimating</b> → structured labor & line items</span>
+          <span class="chip"><b>Consistency</b> → shop-wide standard</span>
+          <span class="chip"><b>Speed</b> → reduce guesswork</span>
+        </div>
+      </div>
+    </div>
+
+    <section id="capabilities">
+      <div class="container">
+        <h2 class="section-title reveal">Built by Techs - For Techs.</h2>
+        <p class="section-sub reveal" style="transition-delay:.06s">
+          Cortex organizes diagnostics the way techs actually work: symptoms → tests → causes → repairs → verification.
+          Structured, repeatable, and easy to audit.
+        </p>
+
+        <div class="grid3">
+          <div class="card reveal" style="transition-delay:.10s">
+            <div class="icon">DX</div>
+            <h3>Guided Diagnostics</h3>
+            <p>
+              Turn vague symptoms into a clear, test-driven path. Cortex recommends the next best checks,
+              reduces dead ends, and helps your whole shop diagnose the same way.
+            </p>
+          </div>
+
+          <div class="card reveal" style="transition-delay:.16s">
+            <div class="icon">RP</div>
+            <h3>Repair Paths</h3>
+            <p>
+              Step-by-step repair flows with verification. Less “hope it works,” more “confirm it’s fixed.”
+              Perfect for training, consistency, and comebacks.
+            </p>
+          </div>
+
+          <div class="card reveal" style="transition-delay:.22s">
+            <div class="icon">SV</div>
+            <h3>Service Intelligence</h3>
+            <p>
+              Maintenance recommendations with shop-friendly language and line items. Designed to support trust,
+              upsell ethically, and keep customers coming back.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="how">
+      <div class="container">
+        <h2 class="section-title reveal">How Cortex works</h2>
+        <p class="section-sub reveal" style="transition-delay:.06s">
+          Cortex is designed to cross-reference a growing library of trusted procedures, patterns, and structured repair knowledge.
+          It prioritizes consistency, traceability, and shop-ready outputs.
+        </p>
+
+        <div class="grid3">
+          <div class="card reveal" style="transition-delay:.12s">
+            <div class="icon">01</div>
+            <h3>Ingest + structure</h3>
+            <p>
+              Procedures and repair knowledge are organized into structured steps, checks, and outcomes — so the result is actionable,
+              not just “advice.”
+            </p>
+          </div>
+          <div class="card reveal" style="transition-delay:.18s">
+            <div class="icon">02</div>
+            <h3>Cross-reference</h3>
+            <p>
+              Cortex compares symptoms, codes, and vehicle context to highlight the most likely causes and the fastest tests
+              to confirm or eliminate them.
+            </p>
+          </div>
+          <div class="card reveal" style="transition-delay:.24s">
+            <div class="icon">03</div>
+            <h3>Output shop-ready</h3>
+            <p>
+              Results are formatted for estimates and RO workflows: labor guidance, parts suggestions, checklists, and
+              verification steps — built to plug into your process.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="why">
+      <div class="container">
+        <h2 class="section-title reveal">Why shops choose Cortex</h2>
+        <p class="section-sub reveal" style="transition-delay:.06s">
+          Cortex doesn’t replace your technicians - it makes them faster, more consistent, and more confident. That’s how you win:
+          fewer comebacks, better estimates, and a smoother customer experience.
+        </p>
+
+        <div class="grid3">
+          <div class="card reveal" style="transition-delay:.12s">
+            <div class="icon">↑</div>
+            <h3>Faster diagnostic flow</h3>
+            <p>Get to confirmable tests quicker. Reduce guesswork and stop bouncing between random sources.</p>
+          </div>
+          <div class="card reveal" style="transition-delay:.18s">
+            <div class="icon">✓</div>
+            <h3>More consistent results</h3>
+            <p>Standardize how your shop diagnoses and repairs, so quality doesn’t depend on who’s on shift.</p>
+          </div>
+          <div class="card reveal" style="transition-delay:.24s">
+            <div class="icon">$</div>
+            <h3>Better estimates</h3>
+            <p>Structured outputs help you build clearer labor + parts line items and explain work to customers.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="trust">
+      <div class="container">
+        <h2 class="section-title reveal">Professional by design</h2>
+        <p class="section-sub reveal" style="transition-delay:.06s">
+          Cortex is built to feel like a true diagnostics platform: structured workflows, repeatable steps, and outputs you can stand behind.
+        </p>
+
+        <div class="grid3">
+          <div class="card reveal" style="transition-delay:.12s">
+            <div class="icon">KB</div>
+            <h3>Continuously updated knowledge</h3>
+            <p>New procedures and patterns are added over time — keeping the system fresh and improving coverage.</p>
+          </div>
+          <div class="card reveal" style="transition-delay:.18s">
+            <div class="icon">QA</div>
+            <h3>Traceable outputs</h3>
+            <p>Designed for clarity and accountability: tests, reasons, likely causes, and verification.</p>
+          </div>
+          <div class="card reveal" style="transition-delay:.24s">
+            <div class="icon">XR</div>
+            <h3>Integrate into your workflow</h3>
+            <p>CRM, Website, One-off Platform? Seamlessly integrate Cortex© into your workflow for the fastest & most accurate data for you and your techs. </p>
+          </div>
+        </div>
+
+        <div style="height:18px"></div>
+
+        <div class="cta reveal" id="cta">
+          <div>
+            <h2>Ready to add Cortex to your shop workflow?</h2>
+            <p>
+              Send us an email today to learn how & start building consistent diagnostics, cleaner estimates, and repair paths your team can trust.
+            </p>
+          </div>
+          <div class="cta-row">
+            <a class="btn primary" href="mailto:xposemarket@gmail.com?subject=Cortex%20Access%20Request">Request access →</a>
+            <a class="btn" href="#top">Back to top</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="container">
+        <div class="foot-row">
+          <div class="fine">
+            <b>Cortex</b> is a diagnostics and repair intelligence system.
+            <br/>
+            <span style="color:rgba(167,181,201,.85)">
+              “OEM-grade structure” refers to structured procedures and guidance formats. Availability of OEM-specific procedures depends on coverage and source licensing.
+              Avoid representing third-party integrations unless you have them.
+            </span>
+          </div>
+
+          <div class="links2">
+            <a href="#capabilities">Capabilities</a>
+            <a href="#how">How it works</a>
+            <a href="#cta">Request access</a>
+          </div>
+        </div>
+
+        <div style="margin-top:14px;color:rgba(167,181,201,.70)">
+          © <span id="year"></span> Cortex • Powered by Xpose Market
+        </div>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    // Year
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Reveal on scroll
+    const els = Array.from(document.querySelectorAll('.reveal'));
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (e.isIntersecting) e.target.classList.add('in');
+      }
+    }, { threshold: 0.12 });
+    els.forEach(el => io.observe(el));
+
+    // Marquee animation (smooth, no CSS gradients)
+    const marquee = document.getElementById('marquee');
+    let x = 0;
+    function tick(){
+      x -= 0.45; // speed
+      // wrap
+      if (x < -marquee.scrollWidth / 2) x = 0;
+      marquee.style.transform = `translateX(${x}px)`;
+      requestAnimationFrame(tick);
+    }
+    tick();
+
+    // Tilt effect for the preview card
+    const card = document.getElementById('tiltCard');
+    const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+
+    function onMove(e){
+      const r = card.getBoundingClientRect();
+      const mx = (e.clientX - r.left) / r.width;
+      const my = (e.clientY - r.top) / r.height;
+
+      const rx = clamp((0.5 - my) * 10, -10, 10);
+      const ry = clamp((mx - 0.5) * 12, -12, 12);
+      card.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg) translateY(-2px)`;
+    }
+    function onLeave(){
+      card.style.transform = 'rotateX(0deg) rotateY(0deg) translateY(0px)';
+    }
+    if (card){
+      card.addEventListener('mousemove', onMove);
+      card.addEventListener('mouseleave', onLeave);
+    }
+
+    // Smooth anchor scroll
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', (ev) => {
+        const id = a.getAttribute('href');
+        const el = document.querySelector(id);
+        if (!el) return;
+        ev.preventDefault();
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+  </script>
+</body>
+</html>
